@@ -8,6 +8,14 @@ set -e
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 
+# CI drops this marker after restoring the compiled core from cache, so the
+# slow NativeAOT publish can be skipped when no C# sources changed
+DYLIB="src/Ryujinx.Library/bin/Release/net10.0/ios-arm64/native/Ryujinx.Library.dylib"
+if [ -f ".ci-core-cache-hit" ] && [ -f "$DYLIB" ]; then
+  echo "Ryujinx.Library.dylib restored from CI cache; skipping dotnet publish"
+  exit 0
+fi
+
 DOTNET=$(command -v dotnet || true)
 
 if [ -z "$DOTNET" ]; then

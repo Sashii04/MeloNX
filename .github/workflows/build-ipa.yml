@@ -38,6 +38,18 @@ jobs:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/global.json', '**/*.csproj', '**/Directory.Packages.props') }}
 
+      - name: 'Cache: compiled Ryujinx core'
+        id: core-cache
+        uses: actions/cache@v4
+        with:
+          path: src/Ryujinx.Library/bin
+          key: ryujinx-core-${{ hashFiles('src/**', '!src/MeloNX/**', 'global.json', 'Directory.Packages.props', 'nuget.config', 'distribution/ios/build.sh') }}
+
+      - name: Mark core cache hit
+        # build.sh sees this marker and skips the ~20 min NativeAOT publish
+        if: steps.core-cache.outputs.cache-hit == 'true'
+        run: touch .ci-core-cache-hit
+
       - name: Archive (unsigned)
         run: |
           xcodebuild archive \
