@@ -8,6 +8,9 @@ on:
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
 
+permissions:
+  contents: write
+
 jobs:
   build-ipa:
     # The app's Release config targets the iOS 26.2 SDK, so we need the
@@ -75,3 +78,9 @@ jobs:
         with:
           name: MeloNX-unsigned-ipa
           path: build/MeloNX-unsigned.ipa
+
+      - name: Update v2.5 release asset
+        if: github.ref_name == 'master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload v2.5 build/MeloNX-unsigned.ipa --clobber -R "$GITHUB_REPOSITORY"
