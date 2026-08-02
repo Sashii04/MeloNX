@@ -1,0 +1,64 @@
+name: Build MeloNX IPA (unsigned)
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  build-ipa:
+    # The app's Release config targets the iOS 26.2 SDK, so we need the
+    # macOS 26 image (ships Xcode 26.x). macos-15 runners top out at Xcode 16.
+    runs-on: macos-26
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Make dotnet visible to Xcode's build script
+        # The "Ryujinx" legacy target runs distribution/ios/build.sh from inside
+        # xcodebuild, which probes /usr/local/bin for dotnet.
+        run: sudo ln -sf "$(command -v dotnet)" /usr/local/bin/dotnet
+
+      - name: Select latest Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -n 1)/Contents/Developer"
+          xcodebuild -version
+
+      - name: 'Cache: ~/.nuget/packages'
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/global.json', '**/*.csproj', '**/Directory.Packages.props') }}
+
+      - name: Archive (unsigned)
+        run: |
+          xcodebuild archive \
+            -project src/MeloNX/MeloNX.xcodeproj \
+            -scheme MeloNX \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/MeloNX.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM=""
+
+      - name: Package IPA
+        run: |
+          mkdir -p build/Payload
+          cp -R build/MeloNX.xcarchive/Products/Applications/MeloNX.app build/Payload/
+          cd build
+          zip -qry MeloNX-unsigned.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MeloNX-unsigned-ipa
+          path: build/MeloNX-unsigned.ipa
