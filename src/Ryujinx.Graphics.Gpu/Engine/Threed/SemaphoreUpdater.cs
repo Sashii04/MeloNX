@@ -187,6 +187,12 @@ namespace Ryujinx.Graphics.Gpu.Engine.Threed
                 case ReportCounterType.TransformFeedbackPrimitivesWritten:
                     counter = _context.Renderer.ReportCounter(CounterType.TransformFeedbackPrimitivesWritten, resultHandler, 1f, false);
                     break;
+                default:
+                    // Unimplemented counter types: real hardware always writes a result.
+                    // Report zero immediately so guest code polling the report memory
+                    // (e.g. Factorio's texture processor) doesn't spin forever.
+                    resultHandler(null, 0);
+                    break;
             }
 
             _channel.MemoryManager.CounterCache.AddOrUpdate(gpuVa, counter);
