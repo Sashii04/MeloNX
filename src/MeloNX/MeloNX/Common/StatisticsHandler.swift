@@ -26,10 +26,13 @@ class StatisticsHandler: ObservableObject {
         CallbackManager.register(name: "push_statistics") { data in
             guard let ptr = data.ptr, data.len >= 33 else { return }
             
-            let fps = ptr.load(fromByteOffset: 0, as: Double.self)
-            let frameTime = ptr.load(fromByteOffset: 8, as: Double.self)
+            // loadUnaligned: fifo sits at byte offset 17, which can never be
+            // 8-byte aligned, and aligned loads trap when debug preconditions
+            // are enabled
+            let fps = ptr.loadUnaligned(fromByteOffset: 0, as: Double.self)
+            let frameTime = ptr.loadUnaligned(fromByteOffset: 8, as: Double.self)
             let started = ptr.load(fromByteOffset: 16, as: UInt8.self) != 0
-            let fifo = ptr.load(fromByteOffset: 17, as: Double.self)
+            let fifo = ptr.loadUnaligned(fromByteOffset: 17, as: Double.self)
             
             Task {
                 await MainActor.run {

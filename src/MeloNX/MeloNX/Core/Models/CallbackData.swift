@@ -24,33 +24,35 @@ extension CallbackData {
         return String(data: data, encoding: .utf8)
     }
     
+    // loadUnaligned: callback buffers come from native code with no alignment
+    // guarantee, and an aligned load(as:) traps when debug preconditions are enabled
     var bool: Bool? {
         guard let data, data.count >= 1 else { return nil }
-        return data.withUnsafeBytes { $0.load(as: Swift.Bool.self) }
+        return data.withUnsafeBytes { $0.loadUnaligned(as: Swift.Bool.self) }
     }
-    
+
     var int: Int32? {
         guard let data, data.count >= 4 else { return nil }
-        return data.withUnsafeBytes { $0.load(as: Int32.self) }
+        return data.withUnsafeBytes { $0.loadUnaligned(as: Int32.self) }
     }
-    
+
     var long: Int64? {
         guard let data, data.count >= 8 else { return nil }
-        return data.withUnsafeBytes { $0.load(as: Int64.self) }
+        return data.withUnsafeBytes { $0.loadUnaligned(as: Int64.self) }
     }
-    
+
     var float: Float? {
         guard let data, data.count >= 4 else { return nil }
-        return data.withUnsafeBytes { $0.load(as: Swift.Float.self) }
+        return data.withUnsafeBytes { $0.loadUnaligned(as: Swift.Float.self) }
     }
-    
+
     var double: Double? {
         guard let data, data.count >= 8 else { return nil }
-        return data.withUnsafeBytes { $0.load(as: Swift.Double.self) }
+        return data.withUnsafeBytes { $0.loadUnaligned(as: Swift.Double.self) }
     }
-    
+
     func load<T>(as type: T.Type) -> T? {
         guard let ptr, Int(len) >= MemoryLayout<T>.size else { return nil }
-        return ptr.load(as: T.self)
+        return UnsafeRawBufferPointer(start: ptr, count: Int(len)).loadUnaligned(as: T.self)
     }
 }

@@ -87,7 +87,11 @@ struct MeloNXApp: App {
                 .onAppear() {
                     UIDevice.current.beginGeneratingDeviceOrientationNotifications()
                     
-                    let versionNumber = lastAppversion.withUnsafeBytes { $0.load(as: Float.self) }
+                    // lastAppversion is empty on first launch; a bare load(as:) traps on
+                    // out-of-bounds/misaligned reads when debug preconditions are enabled
+                    let versionNumber: Float = lastAppversion.count >= MemoryLayout<Float>.size
+                        ? lastAppversion.withUnsafeBytes { $0.loadUnaligned(as: Float.self) }
+                        : .zero
 
                     
                     if versionNumber < Float(Bundle.main.versionNumber) ?? .zero {
