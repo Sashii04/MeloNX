@@ -95,3 +95,45 @@ Device/install status:
    port supports the touchscreen natively (tap moves the cursor, touch
    inventory management) and MeloNX passes iPad touches through, so overlay
    placement should stay out of the way of touch play.
+
+## Session 2026-08-02 (Mac): Factorio loading stall + video freeze FIXED
+
+**Bug found and fixed** (commit `FIX: write zero result for unimplemented GPU
+counter report types`, on master): Factorio 2.0 requests GPU counter reports
+of types 0x2 and FragmentShaderInvocations (0x13) and busy-polls guest memory
+for the 16-byte result. `SemaphoreUpdater.ReportCounter` only handled
+Payload/SamplesPassed/PrimitivesGenerated/TransformFeedbackPrimitivesWritten
+and silently dropped everything else -> the game spun ~11s per sprite atlas
+during loading (~90s wasted; watch for 'Generated mipmaps ... total: 11300ms'
+in logs) and froze permanently in the patch-notes video (untimed poll).
+Fix: default case writes a zero result immediately. Verified on device:
+load went 199s -> ~110s, video plays.
+
+Diagnosis method (worth repeating for similar stalls): `sync-debug` branch
+has SYNCDBG instrumentation (fence registration/signal, kernel event
+signal/clear, svc wait timing, slow condvar/arbiter waits >2s, semaphore
+release + counter report request/land). Build it via workflow_dispatch on
+the branch; CI uploads the IPA to the v2.5-syncdbg prerelease directly.
+
+**Release automation**: pushes to master build the IPA and clobber the
+asset on the v2.5 release (direct Signulous URL:
+https://github.com/nurtrino/MeloNX/releases/download/v2.5/MeloNX-unsigned.ipa).
+
+**Device log workflow**: enable Debug Logs in MeloNX settings; logs are in
+On My iPad -> MeloNX -> Logs (keeps last 5); user AirDrops them to
+~/Downloads on the Mac. Factorio's own stdout is embedded in the emulator
+log ('Function: stdout' entries) - extremely useful.
+
+## Known issues / next steps (as of 2026-08-02)
+
+1. **Software keyboard applet is broken**: tapping Factorio's search icon
+   invokes the swkbd inline applet; 'Applet did not draw on indirect layer
+   handle 1' spams and the screen shows garbage ('static'), then the session
+   ends. Avoid text input for now. Proper fix: implement/stub indirect-layer
+   drawing for swkbd on iOS (or feed it via the iOS keyboard).
+2. **Patch-notes popup**: dismiss with the virtual controller's B button,
+   not by tapping the panel.
+3. **Remaining load time** (~96s) is genuine sprite decode on 3 emulated
+   threads. Ideas: lower in-game sprite resolution to Normal; investigate
+   whether the port honors config.ini atlas caching.
+4. Firmware install file picker fixed on master (LSSupportsOpeningDocumentsInPlace).
